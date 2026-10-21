@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Quail Wars</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #26352b;
+            --muted: #68766a;
+            --paper: #f5f0dc;
+            --panel: #fffdf4;
+            --line: #d8d0b8;
+            --leaf: #456e46;
+            --berry: #b64e45;
+            --sun: #e8bd4d;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--ink);
+            background-color: #dfe7c9;
+            background-image: radial-gradient(#cc33ff 1px, transparent 1px), linear-gradient(135deg, #e8edcf, #d4e1bd);
+            background-size: 18px 18px, auto;
+            font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        }
+        button { font: inherit; }
+        #game { max-width: 1080px; margin: 0 auto; padding: 20px; }
+        .topbar { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 15px; }
+        .brand { display: flex; align-items: center; gap: 10px; }
+        .brand-mark { display: grid; place-items: center; width: 45px; height: 45px; background: var(--sun); border: 2px solid var(--ink); border-radius: 14px 14px 14px 4px; font-size: 29px; transform: rotate(-4deg); }
+        h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 32px; line-height: 1; }
+        .subtitle { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+        .top-stats { display: flex; gap: 8px; }
+        .side-panel > .topbar { flex-direction: column; align-items: stretch; }
+        .side-panel .top-stats { flex-direction: column; width: 100%; }
+        .stat { width: 100%; min-width: 0; padding: 5px 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
+        .stat small { display: block; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .stat strong { display: block; margin-top: 2px; font-size: 17px; }
+        .layout { display: grid; grid-template-columns: minmax(0, 1fr) 276px; gap: 15px; align-items: start; }
+        .playfield, .side-panel { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 5px 0 #b7c39e; }
+        .playfield { overflow: hidden; }
+        .field-head { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 5px 14px; border-bottom: 1px solid var(--line); }
+        .field-head strong { font-family: Georgia, "Times New Roman", serif; font-size: 17px; }
+        #regionPosition { color: var(--muted); font-size: 12px; font-weight: 700; }
+        #gameMap { display: block; width: 100%; height: auto; background: #8eae63; image-rendering: pixelated; }
+        #battleView { display: none; min-height: 450px; padding: 11px; background: linear-gradient(160deg, #d9e6b9 0 48%, #b8d293 48% 100%); }
+        .battle-top { display: flex; justify-content: space-between; align-items: center; color: #42583c; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+        .battle-ground { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: center; min-height: 270px; }
+        .bird { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .bird.enemy { transform: translateY(-14px); }
+        .bird.player { transform: translateY(20px); }
+        .bird-art { display: grid; place-items: center; width: 148px; height: 138px; border-radius: 50%; background: #f5e8b6; box-shadow: 0 10px 0 #8eae63; font-size: 82px; animation: bob 2.2s ease-in-out infinite; }
+        .player .bird-art { background: #d6e3bd; animation-delay: -.8s; }
+        .bird-name { width: min(100%, 230px); padding: 5px 6px; border: 1px solid #c7cfac; border-radius: 6px; background: #fffdf2; }
+        .name-line { display: flex; justify-content: space-between; gap: 8px; font-weight: 800; }
+        .hp-track { height: 8px; margin-top: 7px; overflow: hidden; border-radius: 8px; background: #d8d9c4; }
+        .hp-fill { height: 100%; background: #66a65f; transition: width .2s ease; }
+        .enemy .hp-fill { background: #d68549; }
+        .battle-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .battle-actions button, .utility-button, .dpad button { border: 1px solid #9ca98a; border-radius: 5px; color: var(--ink); background: #f8f5e8; font-weight: 800; cursor: pointer; transition: transform .12s ease, background .12s ease; }
+        .battle-actions button { min-height: 46px; padding: 5px; font-size: 12px; }
+        .battle-actions button:hover, .utility-button:hover, .dpad button:hover { background: #e8edcf; transform: translateY(-1px); }
+        .battle-actions button:disabled { cursor: not-allowed; opacity: .45; transform: none; }
+        .side-panel { padding: 8px; }
+        .side-panel h2 { margin: 0 0 12px; font-family: Georgia, "Times New Roman", serif; font-size: 18px; }
+        #text { min-height: 64px; padding: 5px 6px; border-left: 3px solid var(--sun); background: #f5f1df; color: #475649; font-size: 13px; line-height: 1.45; }
+        .section-rule { height: 1px; margin: 15px 0; background: var(--line); }
+        #partyList { display: grid; gap: 8px; }
+        .party-member { display: grid; grid-template-columns: 38px 1fr; gap: 9px; align-items: center; width: 100%; padding: 4px; border: 1px solid #e1dbc7; border-radius: 5px; color: var(--ink); text-align: left; }
+        button.party-member { cursor: pointer; }
+        button.party-member:hover { background: #f0f2df; }
+        button.party-member.active { border-color: #789468; background: #edf2df; }
+        .party-face { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 5px; background: #e8edcf; font-size: 24px; }
+        .party-name { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; }
+        .party-member .hp-track { height: 5px; margin-top: 5px; }
+        .party-member small { color: var(--muted); font-size: 10px; }
+        .utility-button { width: 100%; min-height: 38px; margin-top: 11px; padding: 4px; }
+        .map-key { display: flex; flex-wrap: wrap; gap: 10px; color: var(--muted); font-size: 11px; }
+        .map-key span { display: inline-flex; align-items: center; gap: 4px; }
+        .key-swatch { display: inline-block; width: 13px; height: 13px; border: 1px solid #647757; border-radius: 3px; }
+        .key-grass { background: #82a957; }
+        .key-path { background: #d6bd78; }
+        .key-tall { background: #4f804c; }
+        .controls-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 7px 7px; border-top: 1px solid var(--line); }
+        .dpad { display: grid; grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(3, 36px); gap: 4px; }
+        .dpad button { font-size: 16px; }
+        .dpad .empty { visibility: hidden; }
+        .key-hint { color: var(--muted); font-size: 11px; text-align: right; line-height: 1.5; }
+        .badge { display: inline-block; padding: 2px 4px; border-radius: 4px; background: #e8edcf; color: #4d6946; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+        @keyframes bob { 50% { transform: translateY(-6px); } }
+        @media (max-width: 760px) {
+            #game { padding: 6px; }
+            .topbar { align-items: flex-start; flex-direction: column; }
+            .top-stats { width: 100%; }
+            .stat { flex: 1; min-width: 0; }
+            .layout { grid-template-columns: 1fr; }
+            .side-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+            .side-panel h2, #text, .section-rule, #partyList, .utility-button, .map-key { grid-column: 1 / -1; }
+            .side-panel .section-rule { margin: 12px 0; }
+            #battleView { min-height: 0; padding: 7px; }
+            .battle-ground { min-height: 220px; gap: 8px; }
+            .bird-art { width: 112px; height: 106px; font-size: 62px; }
+            .battle-actions { grid-template-columns: repeat(2, 1fr); }
+            .controls-row { align-items: flex-end; }
+        }
+        @media (max-width: 380px) {
+            h1 { font-size: 27px; }
+            .brand-mark { width: 44px; height: 44px; }
+            .battle-ground { min-height: 190px; }
+            .bird-art { width: 88px; height: 84px; font-size: 50px; }
+        }
+    </style>
+</head>
+<body>
+<main id="game">
+    <div class="layout">
+        <section class="playfield" aria-label="Game view">
+            <div class="field-head"><strong id="regionName">Pinecone Prairie</strong><span id="regionPosition">1, 1</span></div>
+            <canvas id="gameMap" width="600" height="450" aria-label="Overhead map"></canvas>
+            <section id="battleView" aria-live="polite">
+                <div class="battle-top"><span id="battleCaption">Wild quail</span><span class="badge">Quail battle</span></div>
+                <div class="battle-ground">
+                    <div class="bird enemy">
+                        <div class="bird-art" id="enemyArt">🐦</div>
+                        <div class="bird-name"><div class="name-line"><span id="enemyName">Wild Quail</span><span id="enemyLevel">Lv. 2</span></div><div class="hp-track"><div class="hp-fill" id="enemyHpBar"></div></div><small id="enemyHpText"></small></div>
+                    </div>
+                    <div class="bird player">
+                        <div class="bird-art" id="playerArt">🐤</div>
+                        <div class="bird-name"><div class="name-line"><span id="playerName">Sprig</span><span id="playerLevel">Lv. 1</span></div><div class="hp-track"><div class="hp-fill" id="playerHpBar"></div></div><small id="playerHpText"></small></div>
+                    </div>
+                </div>
+                <div class="battle-actions">
+                    <button type="button" data-action="peck">🐤 Peck</button>
+                    <button type="button" data-action="dust">🌪 Dust kick</button>
+                    <button type="button" data-action="snack">🌰 Seed snack</button>
+                    <button type="button" data-action="call">🪶 Call quail</button>
+                    <button type="button" data-action="flee" id="fleeButton">↩ Retreat</button>
+                </div>
+            </section>
+            <div class="controls-row">
+                <div class="dpad" aria-label="Movement controls">
+                    <button class="empty" tabindex="-1" aria-hidden="true"></button><button type="button" aria-label="Move up" onclick="movePlayer(0,-1)">▲</button><button class="empty" tabindex="-1" aria-hidden="true"></button>
+                    <button type="button" aria-label="Move left" onclick="movePlayer(-1,0)">◀</button><button class="empty" tabindex="-1" aria-hidden="true"></button><button type="button" aria-label="Move right" onclick="movePlayer(1,0)">▶</button>
+                    <button class="empty" tabindex="-1" aria-hidden="true"></button><button type="button" aria-label="Move down" onclick="movePlayer(0,1)">▼</button><button class="empty" tabindex="-1" aria-hidden="true"></button>
+                </div>
+                <div class="key-hint">Move with <strong>WASD</strong> or <strong>arrow keys</strong><br>Tall grass is full of challengers.</div>
+            </div>
+        </section>
+        <aside class="side-panel">
+            <div class="topbar">
+                <div class="brand">
+                    <div class="brand-mark" aria-hidden="true">🐤</div>
+                    <div><h1>Quail Wars</h1><p class="subtitle">V.I.P PREVIEW</p></div>
+                </div>
+            </div>
+            <h2>Field notes</h2>
+            <div id="text" role="status">A new trail, a new team. Head through tall grass to meet wild quail, and follow the paths to explore all nine regions.</div>
+            <br>
+            <div class="top-stats" aria-label="Trainer stats">
+                <div class="stat"><small>Quail</small><strong id="teamCount">1</strong></div>
+                <div class="stat"><small>Wins</small><strong id="winsText">0</strong></div>
+                <div class="stat"><small>Region</small><strong id="regionNumber">1 / 9</strong></div>
+            </div>
+            <div class="section-rule"></div>
+            <h2>Your flock <span class="badge" id="flockBadge">1 bird</span></h2>
+            <div id="partyList"></div>
+            <button type="button" class="utility-button" id="roostButton">🏕 Roost and recover</button>
+            <div class="section-rule"></div>
+            <div class="map-key" aria-label="Map legend"><span><i class="key-swatch key-grass"></i> Meadow</span><span><i class="key-swatch key-path"></i> Trail</span><span><i class="key-swatch key-tall"></i> Tall grass</span></div>
+        </aside>
+    </div>
+</main>
+<script>
+    const canvas = document.getElementById("gameMap");
+    const ctx = canvas.getContext("2d");
+    const TILE = 50;
+    const MAP_WIDTH = 12;
+    const MAP_HEIGHT = 9;
+    const regions = [
+        { name: "Pinecone Prairie", mood: "prairie", birds: ["Mottle", "Pip", "Clover"] },
+        { name: "Thistlewood", mood: "wood", birds: ["Bramble", "Acorn", "Pip"] },
+        { name: "Cloudbreak Cliffs", mood: "cliff", birds: ["Pebble", "Gust", "Mottle"] },
+        { name: "Redclay Run", mood: "clay", birds: ["Rufus", "Pip", "Cinder"] },
+        { name: "Windmill Crossing", mood: "farm", birds: ["Clover", "Mottle", "Bramble"] },
+        { name: "Moonpond Marsh", mood: "marsh", birds: ["Reed", "Pebble", "Pip"] },
+        { name: "Embergrass Flats", mood: "ember", birds: ["Cinder", "Rufus", "Mottle"] },
+        { name: "Starfall Grove", mood: "grove", birds: ["Acorn", "Gust", "Reed"] },
+        { name: "Crownseed Arena", mood: "arena", birds: ["Rufus", "Cinder", "Gust"] }
+    ];
+    const palettes = {
+        prairie: { grass: "#8eb766", alternate: "#83ad5e", path: "#d6bd7c", tall: "#4d8049", water: "#7ab9c0", stone: "#818d69" },
+        wood: { grass: "#6e9d64", alternate: "#65915c", path: "#c8b77b", tall: "#376b47", water: "#72aeb1", stone: "#777e5f" },
+        cliff: { grass: "#a4b677", alternate: "#97a96e", path: "#d1bb8a", tall: "#668650", water: "#8dbac0", stone: "#91928b" },
+        clay: { grass: "#a7a36a", alternate: "#99975f", path: "#d4b27a", tall: "#6f8050", water: "#76a9a8", stone: "#a16b52" },
+        farm: { grass: "#a2bd72", alternate: "#92b168", path: "#dfc888", tall: "#648747", water: "#7db5b3", stone: "#8c936b" },
+        marsh: { grass: "#83aa78", alternate: "#759a70", path: "#c8b77a", tall: "#4b775d", water: "#68a9b2", stone: "#858d70" },
+        ember: { grass: "#aeb16d", alternate: "#9da661", path: "#d9bd80", tall: "#7c8348", water: "#80b5af", stone: "#a57956" },
+        grove: { grass: "#75a46e", alternate: "#699866", path: "#cbbb80", tall: "#3e704f", water: "#78b4b3", stone: "#7c8968" },
+        arena: { grass: "#b5bd79", alternate: "#a8b16e", path: "#e1ca8b", tall: "#71864e", water: "#86b9b6", stone: "#918b68" }
+    };
+    const zone = { x: 0, y: 0 };
+    const player = { x: 6, y: 4 };
+    let facing = 1;
+    const defeatedRivals = new Set();
+    const party = [{ name: "Sprig", emoji: "🐤", level: 1, xp: 0, hp: 30, maxHp: 30, seedUsed: false }];
+    let map = [];
+    let battle = null;
+    let wins = 0;
+    let stepCount = 0;
+    const textLog = document.getElementById("text");
+    const SAVE_KEY = "quailWarsSave";
+
+    function saveGame() {
+        try {
+            localStorage.setItem(SAVE_KEY, JSON.stringify({
+                version: 1,
+                zone,
+                player,
+                facing,
+                party,
+                wins,
+                stepCount,
+                defeatedRivals: [...defeatedRivals]
+            }));
+        } catch (error) {
+            // Storage can be unavailable in private browsing or restricted pages.
+        }
+    }
+
+    function loadGame() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
+            if (!saved || saved.version !== 1 || !saved.zone || !saved.player || !Array.isArray(saved.party)) return;
+            if (!Number.isInteger(saved.zone.x) || !Number.isInteger(saved.zone.y) || !canTravel(saved.zone.x, saved.zone.y)) return;
+            if (!Number.isInteger(saved.player.x) || saved.player.x < 0 || saved.player.x >= MAP_WIDTH || !Number.isInteger(saved.player.y) || saved.player.y < 0 || saved.player.y >= MAP_HEIGHT) return;
+            if (saved.party.length < 1 || saved.party.length > 3) return;
+            const validParty = saved.party.every(bird => bird && typeof bird.name === "string" && /^[a-zA-Z -]{1,24}$/.test(bird.name) && ["🐤", "🐦"].includes(bird.emoji) && Number.isInteger(bird.level) && bird.level >= 1 && bird.level <= 99 && Number.isInteger(bird.maxHp) && bird.maxHp >= 1 && bird.maxHp <= 1000 && Number.isInteger(bird.hp) && bird.hp >= 0 && bird.hp <= bird.maxHp && Number.isInteger(bird.xp) && bird.xp >= 0 && bird.xp < bird.level * 20);
+            if (!validParty) return;
+            zone.x = saved.zone.x;
+            zone.y = saved.zone.y;
+            player.x = saved.player.x;
+            player.y = saved.player.y;
+            facing = saved.facing === -1 ? -1 : 1;
+            party.splice(0, party.length, ...saved.party.map(bird => ({ ...bird, seedUsed: Boolean(bird.seedUsed) })));
+            wins = Number.isInteger(saved.wins) && saved.wins >= 0 ? saved.wins : 0;
+            stepCount = Number.isInteger(saved.stepCount) && saved.stepCount >= 0 ? saved.stepCount : 0;
+            if (Array.isArray(saved.defeatedRivals)) {
+                for (const key of saved.defeatedRivals) {
+                    if (typeof key === "string" && /^[0-2],[0-2]$/.test(key)) defeatedRivals.add(key);
+                }
+            }
+        } catch (error) {
+            // Start a fresh game if saved data is unavailable or malformed.
+        }
+    }
+
+    function regionIndex() { return zone.y * 3 + zone.x; }
+    function zoneKey(x = zone.x, y = zone.y) { return `${x},${y}`; }
+    function canTravel(x, y) { return x >= 0 && x < 3 && y >= 0 && y < 3; }
+
+    function buildMap() {
+        const index = regionIndex();
+        map = Array.from({ length: MAP_HEIGHT }, (_, y) => Array.from({ length: MAP_WIDTH }, (_, x) => ((x + y + index) % 3 === 0 ? "g" : "G")));
+        for (let x = 0; x < MAP_WIDTH; x++) map[4][x] = ".";
+        for (let y = 0; y < MAP_HEIGHT; y++) map[y][6] = ".";
+        const patches = [
+            [[2,2],[3,2],[2,3],[8,2],[9,2],[9,3],[3,6],[4,6],[8,6]],
+            [[2,2],[2,3],[3,3],[9,2],[9,3],[8,6],[9,6],[3,7]],
+            [[2,2],[3,2],[8,2],[9,3],[2,6],[3,6],[9,6]],
+            [[2,2],[3,2],[9,2],[8,3],[2,6],[3,7],[9,6]],
+            [[2,2],[3,2],[8,2],[9,2],[2,6],[3,6],[8,6],[9,6]],
+            [[2,2],[3,2],[8,2],[9,3],[2,6],[3,7],[8,6]],
+            [[2,2],[3,2],[9,2],[8,3],[2,6],[3,6],[9,6]],
+            [[2,2],[3,3],[8,2],[9,2],[2,6],[3,6],[8,6],[9,6]],
+            [[2,2],[3,2],[8,2],[9,2],[2,6],[3,6],[8,6],[9,6]]
+        ][index];
+        for (const [x, y] of patches) map[y][x] = "t";
+        const mood = regions[index].mood;
+        if (["marsh", "prairie", "grove"].includes(mood)) {
+            for (const [x, y] of [[1,2],[1,3],[10,6],[10,7]]) if (map[y][x] !== ".") map[y][x] = "w";
+        }
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                const atExit = (x === 0 && zone.x > 0 && y === 4) || (x === MAP_WIDTH - 1 && zone.x < 2 && y === 4) || (y === 0 && zone.y > 0 && x === 6) || (y === MAP_HEIGHT - 1 && zone.y < 2 && x === 6);
+                if (atExit) map[y][x] = ".";
+            }
+        }
+        if (zone.x === 2 && zone.y === 2 && !defeatedRivals.has(zoneKey())) map[2][6] = "r";
+    }
+
+    function drawMap() {
+        const colors = palettes[regions[regionIndex()].mood];
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                const tile = map[y][x];
+                ctx.fillStyle = tile === "." ? colors.path : tile === "t" ? colors.tall : tile === "w" ? colors.water : ((x + y) % 2 ? colors.grass : colors.alternate);
+                ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+                if (tile === "t") {
+                    ctx.fillStyle = "#b1cb78";
+                    for (let i = 0; i < 4; i++) ctx.fillRect(x * TILE + 8 + i * 9, y * TILE + 13 + (i % 2) * 8, 3, 14);
+                } else if (tile === "w") {
+                    ctx.fillStyle = "rgba(255,255,255,.28)";
+                    ctx.fillRect(x * TILE + 8, y * TILE + 14, 20, 3);
+                }
+                if (tile === "r") {
+                    ctx.font = "30px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("🐦", x * TILE + 25, y * TILE + 24);
+                }
+            }
+        }
+        const deco = ["🌲", "🌼", "🪨", "🌿", "🌳", "🌾", "🪻", "🪵", "🌱"];
+        for (let i = 0; i < 15; i++) {
+            const x = (i * 7 + regionIndex() * 3 + 1) % MAP_WIDTH;
+            const y = (i * 5 + regionIndex() + 1) % MAP_HEIGHT;
+            if (map[y][x] === "G" && !(x === player.x && y === player.y)) {
+                ctx.font = "17px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(deco[(i + regionIndex()) % deco.length], x * TILE + 25, y * TILE + 25);
+            }
+        }
+        ctx.font = "30px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.save();
+        ctx.translate(player.x * TILE + 25, player.y * TILE + 25);
+        ctx.scale(-facing, 1);
+        ctx.fillText("🐤", 0, 0);
+        ctx.restore();
+    }
+
+    function updateUI() {
+        document.getElementById("regionName").textContent = regions[regionIndex()].name;
+        document.getElementById("regionPosition").textContent = `Region ${zone.x + 1}, ${zone.y + 1}`;
+        document.getElementById("regionNumber").textContent = `${regionIndex() + 1} / 9`;
+        document.getElementById("winsText").textContent = wins;
+        document.getElementById("teamCount").textContent = party.length;
+        document.getElementById("flockBadge").textContent = `${party.length} ${party.length === 1 ? "bird" : "birds"}`;
+        document.getElementById("partyList").innerHTML = party.map((bird, index) => `<button type="button" class="party-member${index === 0 ? " active" : ""}" data-switch="${index}" aria-label="Choose ${bird.name}"><span class="party-face">${bird.emoji}</span><span><span class="party-name"><span>${bird.name} <small>Lv.${bird.level}</small></span><span>${bird.hp}/${bird.maxHp}</span></span><span class="hp-track"><span class="hp-fill" style="display:block;width:${Math.max(0, bird.hp / bird.maxHp * 100)}%"></span></span></span></button>`).join("");
+        document.querySelectorAll("[data-switch]").forEach(button => button.addEventListener("click", () => switchQuail(Number(button.dataset.switch))));
+        document.querySelectorAll("[data-action]").forEach(button => {
+            button.disabled = !battle || (button.dataset.action === "snack" && party[0].seedUsed) || (button.dataset.action === "call" && (party.length >= 3 || battle.enemy.hp / battle.enemy.maxHp > 0.35)) || (button.dataset.action === "flee" && !battle?.wild);
+        });
+        saveGame();
+    }
+
+    function showBattleView(active) {
+        document.getElementById("gameMap").style.display = active ? "none" : "block";
+        document.getElementById("battleView").style.display = active ? "block" : "none";
+    }
+
+    function renderBattle() {
+        if (!battle) return;
+        const enemy = battle.enemy;
+        const quail = party[0];
+        document.getElementById("battleCaption").textContent = battle.wild ? "A wild quail appeared!" : "The Crownseed champion challenges you!";
+        document.getElementById("enemyArt").textContent = enemy.emoji;
+        document.getElementById("enemyName").textContent = enemy.name;
+        document.getElementById("enemyLevel").textContent = `Lv. ${enemy.level}`;
+        document.getElementById("enemyHpText").textContent = `${enemy.hp} / ${enemy.maxHp} HP`;
+        document.getElementById("enemyHpBar").style.width = `${Math.max(0, enemy.hp / enemy.maxHp * 100)}%`;
+        document.getElementById("playerArt").textContent = quail.emoji;
+        document.getElementById("playerName").textContent = quail.name;
+        document.getElementById("playerLevel").textContent = `Lv. ${quail.level}`;
+        document.getElementById("playerHpText").textContent = `${quail.hp} / ${quail.maxHp} HP`;
+        document.getElementById("playerHpBar").style.width = `${Math.max(0, quail.hp / quail.maxHp * 100)}%`;
+        updateUI();
+    }
+
+    function startBattle(wild = true, rivalName = "") {
+        if (battle || party[0].hp <= 0) {
+            if (party[0].hp <= 0) textLog.textContent = "Your lead quail needs a rest. Return to camp and roost.";
+            return;
+        }
+        const species = regions[regionIndex()].birds;
+        const name = rivalName || species[Math.floor(Math.random() * species.length)];
+        battle = { wild, enemy: { name, emoji: name === "Rufus" ? "🐦" : "🐤", level: wild ? 1 + Math.floor(Math.random() * 3) : 4, maxHp: wild ? 20 + Math.floor(Math.random() * 9) : 40, hp: 0 }, snackUsed: false };
+        battle.enemy.hp = battle.enemy.maxHp;
+        showBattleView(true);
+        renderBattle();
+        textLog.textContent = wild ? `A ${name} rustles out of the grass! What will ${party[0].name} do?` : `${name} blocks the trail. The Crownseed challenge begins!`;
+    }
+
+    function finishBattle(message, won = false) {
+        if (won) {
+            wins++;
+            party[0].xp += 12;
+            if (party[0].xp >= party[0].level * 20) {
+                party[0].xp = 0;
+                party[0].level++;
+                party[0].maxHp += 5;
+                party[0].hp = Math.min(party[0].maxHp, party[0].hp + 5);
+                message += ` ${party[0].name} grew to level ${party[0].level}!`;
+            }
+            if (!battle.wild) defeatedRivals.add(zoneKey());
+        }
+        battle = null;
+        showBattleView(false);
+        textLog.textContent = message;
+        drawMap();
+        updateUI();
+    }
+
+    function enemyTurn() {
+        if (!battle) return;
+        const quail = party[0];
+        const damage = 3 + Math.floor(Math.random() * 5) + battle.enemy.level;
+        quail.hp = Math.max(0, quail.hp - damage);
+        if (quail.hp === 0) {
+            finishBattle(`${battle.enemy.name} wins this round. Roost at camp to get Sprig back on its feet.`);
+            return;
+        }
+        textLog.textContent += ` ${battle.enemy.name} pecks back for ${damage} damage.`;
+        renderBattle();
+    }
+
+    function switchQuail(index) {
+        if (index === 0 || !party[index] || party[index].hp <= 0) return;
+        const next = party.splice(index, 1)[0];
+        party.unshift(next);
+        textLog.textContent = `${next.name}, take the lead!`;
+        if (battle) enemyTurn();
+        else updateUI();
+        if (battle) renderBattle();
+    }
+
+    function battleAction(action) {
+        if (!battle) return;
+        const enemy = battle.enemy;
+        const quail = party[0];
+        if (action === "snack") {
+            if (quail.seedUsed) return;
+            const heal = Math.min(10, quail.maxHp - quail.hp);
+            if (!heal) { textLog.textContent = "Sprig is already at full strength. The seed snack is saved."; return; }
+            quail.hp += heal;
+            quail.seedUsed = true;
+            textLog.textContent = `${quail.name} munched a seed and recovered ${heal} HP.`;
+            enemyTurn();
+            return;
+        }
+        if (action === "call") {
+            if (party.length >= 3 || enemy.hp / enemy.maxHp > 0.35) return;
+            if (Math.random() < 0.72) {
+                party.push({ name: enemy.name, emoji: enemy.emoji, level: enemy.level, xp: 0, hp: enemy.maxHp, maxHp: enemy.maxHp, seedUsed: false });
+                finishBattle(`${enemy.name} joined your flock! Your team can hold up to three quail.`, true);
+            } else {
+                textLog.textContent = `${enemy.name} shook off your call!`;
+                enemyTurn();
+            }
+            return;
+        }
+        if (action === "flee") {
+            if (!battle.wild) return;
+            if (Math.random() < 0.65) { finishBattle("You slipped away through the grass."); return; }
+            textLog.textContent = "No opening to retreat!";
+            enemyTurn();
+            return;
+        }
+        const damage = action === "dust" ? 10 + Math.floor(Math.random() * 7) : 6 + Math.floor(Math.random() * 6);
+        enemy.hp = Math.max(0, enemy.hp - damage);
+        if (enemy.hp === 0) { finishBattle(`${quail.name} wins! +12 flock XP.`, true); return; }
+        textLog.textContent = `${quail.name} used ${action === "dust" ? "Dust Kick" : "Peck"} for ${damage} damage.`;
+        enemyTurn();
+    }
+
+    function movePlayer(dx, dy) {
+        if (battle) return;
+        let nextX = player.x + dx;
+        let nextY = player.y + dy;
+        if (nextX < 0 || nextX >= MAP_WIDTH || nextY < 0 || nextY >= MAP_HEIGHT) {
+            const nextZoneX = zone.x + (nextX < 0 ? -1 : nextX >= MAP_WIDTH ? 1 : 0);
+            const nextZoneY = zone.y + (nextY < 0 ? -1 : nextY >= MAP_HEIGHT ? 1 : 0);
+            if (!canTravel(nextZoneX, nextZoneY)) { textLog.textContent = "The trail ends at the edge of the known country."; return; }
+            zone.x = nextZoneX;
+            zone.y = nextZoneY;
+            if (nextX < 0) nextX = MAP_WIDTH - 1;
+            if (nextX >= MAP_WIDTH) nextX = 0;
+            if (nextY < 0) nextY = MAP_HEIGHT - 1;
+            if (nextY >= MAP_HEIGHT) nextY = 0;
+            if (dx !== 0) facing = dx;
+            player.x = nextX;
+            player.y = nextY;
+            buildMap();
+            drawMap();
+            updateUI();
+            textLog.textContent = `You made it to ${regions[regionIndex()].name}. The trail keeps going.`;
+            return;
+        }
+        if (map[nextY][nextX] === "w") { textLog.textContent = "The pond is too deep to cross. Follow the trail around."; return; }
+        if (dx !== 0) facing = dx;
+        player.x = nextX;
+        player.y = nextY;
+        stepCount++;
+        saveGame();
+        drawMap();
+        if (map[nextY][nextX] === "r" && !defeatedRivals.has(zoneKey())) { startBattle(false, "Rufus"); return; }
+        if (map[nextY][nextX] === "t" && Math.random() < 0.2) { startBattle(true); return; }
+        if (stepCount % 9 === 0) textLog.textContent = `The breeze carries birdsong across ${regions[regionIndex()].name}. Keep exploring.`;
+    }
+
+    document.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => battleAction(button.dataset.action)));
+    document.getElementById("roostButton").addEventListener("click", () => {
+        if (battle) { textLog.textContent = "Find a quiet trail before you set up camp."; return; }
+        for (const bird of party) { bird.hp = bird.maxHp; bird.seedUsed = false; }
+        textLog.textContent = "A peaceful roost. Your whole flock is back to full strength.";
+        updateUI();
+    });
+    window.addEventListener("keydown", event => {
+        const keys = { arrowup: [0,-1], w: [0,-1], arrowdown: [0,1], s: [0,1], arrowleft: [-1,0], a: [-1,0], arrowright: [1,0], d: [1,0] };
+        const direction = keys[event.key.toLowerCase()];
+        if (direction) { event.preventDefault(); movePlayer(direction[0], direction[1]); }
+    });
+    loadGame();
+    buildMap();
+    drawMap();
+    updateUI();
+</script>
+</body>
+</html>
